@@ -40,8 +40,8 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('NWL Boilerplate')
-    .setDescription('NWL Boilerplate APIs Documentation')
+    .setTitle('NestJS Boilerplate')
+    .setDescription('NestJS Boilerplate APIs Documentation')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

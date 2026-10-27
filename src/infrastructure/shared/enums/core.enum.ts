@@ -15,7 +15,7 @@ export enum EVENTS {
 }
 
 export enum DOMAIN {
-  SYSTEM = 'NWL-BOILERPLATE',
+  SYSTEM = 'NESTJS-BOILERPLATE',
   HEALTH = 'Health',
   EXAMPLE = 'Example',
 }

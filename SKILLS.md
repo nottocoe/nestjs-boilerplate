@@ -1,6 +1,6 @@
 # Project Architecture & Coding Standards (SKILLS.md)
 
-This document describes the architecture, coding standards, and design patterns of NWL NestJS services built from **nwl-boilerplate**. It mirrors the conventions of `nwl-system-control-services`.
+This document describes the architecture, coding standards, and design patterns of NestJS services built from **nestjs-boilerplate**. It mirrors the conventions of `nestjs-system-control-services`.
 
 ---
 
@@ -21,7 +21,7 @@ src/
 ├── domain/                # Domain Layer (business logic)
 │   ├── services/         # <name>/<name>.service.port.ts + <name>.service.ts
 │   ├── repositories/     # <name>/<name>.repository.port.ts + <name>.repository.ts (Prisma)
-│   ├── adapters/         # Ports + HTTP clients for other NWL services
+│   ├── adapters/         # Ports + HTTP clients for other NestJS services
 │   └── events/           # @OnEvent listeners
 │
 ├── infrastructure/        # Framework glue
