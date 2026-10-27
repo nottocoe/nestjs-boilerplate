@@ -1,0 +1,70 @@
+# =========================
+# Node artifacts (local only)
+# =========================
+node_modules
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# =========================
+# Build output (build ใน container)
+# =========================
+dist
+build
+out
+coverage
+
+# =========================
+# Environment / secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Git
+# =========================
+.git
+.gitignore
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode
+.idea
+*.iml
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Cache / temp
+# =========================
+.cache
+.npm
+.pnpm-store
+.tmp
+temp
+tmp
+
+# =========================
+# Tests (ไม่ต้องเอาไป build)
+# =========================
+test
+tests
+__tests__
+
+# =========================
+# Prisma local db (ถ้าใช้ SQLite dev)
+# =========================
+src/infrastructure/prisma/*.db
+src/infrastructure/prisma/*.db-journal
+
+# =========================
+# Docs
+# =========================
+README.md
+*.md

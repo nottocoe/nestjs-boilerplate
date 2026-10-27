@@ -1,0 +1,24 @@
+# ช่องโหว่ของ npm ที่ bundle มากับ base image node:24-alpine
+# (/usr/local/lib/node_modules/npm) — ไม่ได้มาจาก package.json ของ service นี้
+#
+# ทำไมถึงยกเว้น:
+#   - npm ไม่ถูกเรียกตอน serve request — รันแค่ initContainer prisma-migrate ตอน pod start
+#   - verify แล้วว่า npm@latest (12.0.2) ยัง bundle เวอร์ชันเดิม ⇒ bump จากฝั่งเราไม่ได้
+#   - scope ด้วย paths ไว้แล้ว ถ้า package พวกนี้โผล่ใน node_modules ของแอปจริง จะยังถูกจับ
+#
+# รายละเอียด: docs/issues/2026-09-14-eva-trivy-cve-inventory-remediation.md
+# ทางออกถาวร: ลบ npm ออกจาก runner stage + เปลี่ยน initContainer ไปเรียก prisma ตรง
+
+vulnerabilities:
+  - id: CVE-2026-14257      # brace-expansion DoS
+    paths: ["usr/local/lib/node_modules/npm/**"]
+    expired_at: 2026-12-14
+  - id: CVE-2026-69152      # brace-expansion DoS (bypass ของ CVE-2026-14257)
+    paths: ["usr/local/lib/node_modules/npm/**"]
+    expired_at: 2026-12-14
+  - id: CVE-2026-69192      # ip-address SSRF
+    paths: ["usr/local/lib/node_modules/npm/**"]
+    expired_at: 2026-12-14
+  - id: CVE-2026-73566      # tar DoS
+    paths: ["usr/local/lib/node_modules/npm/**"]
+    expired_at: 2026-12-14

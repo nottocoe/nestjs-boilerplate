@@ -1,0 +1,22 @@
+generator client {
+  provider = "prisma-client"
+  output   = "./generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Example {
+  id          String   @id @default(uuid())
+  project_id  String
+  name        String
+  description String?
+  status      String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@unique([project_id, name])
+  @@index([project_id])
+  @@map("example")
+}

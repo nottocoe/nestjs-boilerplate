@@ -1,0 +1,110 @@
+name: Build and Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ns:
+        description: 'Select Namespace'
+        required: true
+        default: 'test'
+        type: choice
+        options: [test]
+
+concurrency:
+  group: deploy-${{ inputs.target_ns }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    env:
+      REGISTRY: 10.15.15.116:30500
+      IMAGE_NAME: nwl-boilerplate
+      NS: ${{ inputs.target_ns }}
+
+    steps:
+      - name: Checkout Application Code
+        uses: actions/checkout@v4
+
+      - name: Set Image Tag
+        run: echo "TAG=$(date +%s)-${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build --target runner -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }} .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+      - name: Update Helm Values (GitOps via SSH)
+        run: |
+          export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no"
+          git clone git@github.com:NetworkLink2563/nwl-k8s-manifest.git manifest-repo
+          cd manifest-repo
+          git config user.name "nwl-runner"
+          git config user.email "runner@nwl.local"
+          TARGET_FILE="apps/nwl-boilerplate/values-${{ env.NS }}.yaml"
+          if [ -f "$TARGET_FILE" ]; then
+            sed -i "s/tag: .*/tag: ${{ env.TAG }}/" "$TARGET_FILE"
+            git add "$TARGET_FILE"
+            git commit -m "Deploy ${{ env.NS }}: Update nwl-boilerplate image to ${{ env.TAG }}"
+            for attempt in 1 2 3; do
+              git push origin main && break
+              [ "$attempt" = 3 ] && exit 1
+              git pull --rebase origin main
+            done
+          else
+            echo "::error::File $TARGET_FILE not found. Check manifest structure."
+            exit 1
+          fi
+
+      - name: Cleanup on Failure
+        if: failure()
+        run: |
+          echo "Deployment failed. Gathering debug information..."
+          echo "=== Deployment Status ==="
+          kubectl get deployment/${{ env.IMAGE_NAME }} -n ${{ env.NS }} || true
+          echo "=== Pod Status ==="
+          kubectl get pods -n ${{ env.NS }} -l app=${{ env.IMAGE_NAME }} || true
+          echo "=== Recent Events ==="
+          kubectl get events -n ${{ env.NS }} --sort-by='.lastTimestamp' --field-selector type!=Normal | tail -20 || true
+          echo "=== Pod Logs ==="
+          kubectl logs -n ${{ env.NS }} -l app=${{ env.IMAGE_NAME }} --tail=50 --prefix=true || true
+          echo "=== Init Container Logs (if migration failed) ==="
+          POD_NAME=$(kubectl get pods -n ${{ env.NS }} -l app=${{ env.IMAGE_NAME }} -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+          if [ -n "$POD_NAME" ]; then
+            kubectl logs $POD_NAME -n ${{ env.NS }} -c db-migrate --tail=50 || echo "No init container logs"
+          fi
+
+      - name: Sync ArgoCD Application
+        run: |
+          kubectl annotate app ${{ env.NS }}-nwl-boilerplate -n argocd argocd.argoproj.io/refresh=soft --overwrite
+
+      - name: Discord Notification
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ "$JOB_STATUS" = "success" ]; then
+            TITLE="🚀 Deployment Report"; STATUS="Success"; COLOR=3066993
+          else
+            TITLE="❌ Deployment Failed"; STATUS="Failed"; COLOR=15158332
+          fi
+          export TITLE STATUS COLOR
+          export PROJECT="nwl-boilerplate"
+          export ENV_NAME="${{ env.NS }}"
+          export TAG_NAME="${{ env.TAG }}"
+          export RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          JSON_PAYLOAD=$(python3 -c '
+          import json, os
+          print(json.dumps({"embeds": [{
+              "title": os.environ["TITLE"],
+              "color": int(os.environ["COLOR"]),
+              "fields": [
+                  {"name": "Project", "value": os.environ["PROJECT"], "inline": True},
+                  {"name": "Environment", "value": os.environ["ENV_NAME"], "inline": True},
+                  {"name": "Status", "value": os.environ["STATUS"], "inline": True},
+                  {"name": "Image Tag", "value": os.environ["TAG_NAME"]},
+              ],
+              "url": os.environ["RUN_URL"],
+          }]}))')
+          curl -H "Content-Type: application/json" -X POST -d "$JSON_PAYLOAD" "$DISCORD_WEBHOOK"
